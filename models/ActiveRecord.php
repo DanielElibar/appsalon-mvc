@@ -16,8 +16,15 @@ class ActiveRecord {
     
     // Definir la conexión a la BD - includes/database.php
     public static function setDB($database) {
-        self::$db = $database;
+    self::$db = $database;
+
+        // Verificar la conexión
+        if (self::$db->connect_error) {
+            error_log('Database connection error: ' . self::$db->connect_error);
+            die('Database connection error: ' . self::$db->connect_error);
+        }
     }
+
 
     // Setear un tipo de Alerta
     public static function setAlerta($tipo, $mensaje) {
@@ -100,16 +107,20 @@ class ActiveRecord {
 
     // Registros - CRUD
     public function guardar() {
-        $resultado = '';
-        if(!is_null($this->id)) {
-            // actualizar
-            $resultado = $this->actualizar();
-        } else {
-            // Creando un nuevo registro
-            $resultado = $this->crear();
-        }
-        return $resultado;
+    // Log de los datos recibidos en la solicitud POST
+    error_log(print_r($_POST, true));
+
+    $resultado = '';
+    if(!is_null($this->id)) {
+        // actualizar
+        $resultado = $this->actualizar();
+    } else {
+        // Creando un nuevo registro
+        $resultado = $this->crear();
     }
+    return $resultado;
+    }
+
 
     // Obtener todos los Registros
     public static function all($orden = 'DESC') {
@@ -208,28 +219,37 @@ class ActiveRecord {
     }
 
     // crea un nuevo registro
-    public function crear() {
-        // Sanitizar los datos
-        $atributos = $this->sanitizarAtributos();
+   public function crear() {
+    // Sanitizar los datos
+    $atributos = $this->sanitizarAtributos();
 
-        $atributos = array_map('trim', $atributos);
+    $atributos = array_map('trim', $atributos);
 
-        // Insertar en la base de datos
-        $query = " INSERT INTO " . static::$tabla . " (";
-        $query .= join(', ', array_keys($atributos));
-        $query .= ") VALUES ('"; 
-        $query .= join("', '", array_values($atributos));
-        $query .= "') ";
+    // Insertar en la base de datos
+    $query = "INSERT INTO " . static::$tabla . " (";
+    $query .= join(', ', array_keys($atributos));
+    $query .= ") VALUES ('"; 
+    $query .= join("', '", array_values($atributos));
+    $query .= "') ";
 
-        // debuguear($query); // Descomentar si no te funciona algo
-        
-        // Resultado de la consulta
-        $resultado = self::$db->query($query);
-        return [
-           'resultado' => $resultado,
-           'id' => self::$db->insert_id
-        ];
+    // Log de la consulta
+    error_log($query); // Log de la consulta SQL
+
+    // Resultado de la consulta
+    $resultado = self::$db->query($query);
+
+    // Capturar y loguear el error de MySQL si ocurre
+    if (!$resultado) {
+        error_log('MySQL error: ' . self::$db->error);
+        die('MySQL error: ' . self::$db->error);
     }
+
+    return [
+       'resultado' => $resultado,
+       'id' => self::$db->insert_id
+    ];
+}
+
 
     // Actualizar el registro
     public function actualizar() {
